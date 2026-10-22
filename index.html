@@ -47,10 +47,10 @@
   <section class="card">
     <div class="grid">
       <div class="field"><label for="unit">單位</label><input id="unit" autocomplete="organization" placeholder="例如：新屋森林"></div>
-      <div class="field"><label for="name">姓名</label><input id="name" autocomplete="name" placeholder="例如：徐敬惟"></div>
-      <div class="field"><label for="job">職稱</label><input id="job" placeholder="例如：業務襄理"></div>
+      <div class="field"><label for="name">姓名(建議最多輸入兩個)</label><input id="name" autocomplete="name" placeholder="例如：徐敬惟"></div>
+      <div class="field"><label for="job">職稱(建議最多輸入兩個)</label><input id="job" placeholder="例如：推展處襄理"></div>
       <div class="field"><label for="product">商品</label><input id="product" placeholder="例如：萬年美麗"></div>
-      <div class="field full"><label for="fyp">FYP</label><input id="fyp" inputmode="decimal" placeholder="例如：100P"></div>
+      <div class="field full"><label for="fyp">FYP</label><input id="fyp" type="number" inputmode="decimal" step="any" min="0" placeholder="例如：100"></div>
     </div>
     <button class="primary" id="generate">產生圖片預覽</button>
     <button class="secondary" id="clear">清除欄位</button>
@@ -112,6 +112,8 @@
       job: $('job').value.trim(),
       product: $('product').value.trim(),
       fyp: $('fyp').value.trim()
+        ? $('fyp').value.trim().replace(/P$/i, '') + 'P'
+        : ''
     };
     const missing = Object.entries({unit:'單位',name:'姓名',job:'職稱',product:'商品',fyp:'FYP'})
       .filter(([key]) => !values[key]).map(([,label]) => label);
