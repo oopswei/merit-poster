@@ -1,0 +1,15 @@
+{
+  "name": "績優表揚自動產圖",
+  "short_name": "績優產圖",
+  "description": "輸入單位、姓名、職稱、商品、FYP，自動產生綠金色績優表揚圖片",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f1f4ef",
+  "theme_color": "#075d43",
+  "icons": [
+    {"src":"./icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"./icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}
+  ]
+}

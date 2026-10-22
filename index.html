@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#075d43">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="績優產圖">
+  <title>績優表揚產圖</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <style>
+    :root { color-scheme: light; --green:#075d43; --gold:#d7ad37; --ink:#26312a; --muted:#66736b; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f1f4ef; color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif; }
+    main { max-width:680px; margin:auto; padding:calc(18px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom)); }
+    header { padding:4px 3px 15px; }
+    h1 { font-size:24px; margin:0 0 7px; letter-spacing:.02em; }
+    .intro { color:var(--muted); font-size:14px; line-height:1.55; margin:0; }
+    .card { background:#fff; border-radius:18px; padding:17px; margin:0 0 14px; box-shadow:0 5px 20px #173b2410; }
+    .grid { display:grid; grid-template-columns:1fr; gap:0; }
+    label { display:block; font-size:14px; font-weight:700; margin:0 0 6px; }
+    input { appearance:none; width:100%; border:1px solid #d6ded7; border-radius:11px; padding:13px 12px; background:white; font-size:16px; color:#1d2b22; margin:0 0 13px; }
+    input:focus { outline:2px solid #7cae98; border-color:var(--green); }
+    button { border:0; border-radius:12px; min-height:48px; padding:12px 14px; width:100%; font-size:16px; font-weight:750; cursor:pointer; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .primary { color:#fff; background:var(--green); }
+    .secondary { color:var(--green); background:#e8f0eb; margin-top:9px; }
+    .gold { color:#3d2c00; background:#f7e8b5; margin-top:9px; }
+    .preview-title { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+    h2 { font-size:17px; margin:0; }
+    .pill { font-size:12px; color:#4f6558; background:#edf3ee; border-radius:99px; padding:5px 9px; white-space:nowrap; }
+    canvas { width:100%; height:auto; display:block; border-radius:9px; background:#eee; }
+    .note { font-size:12px; color:var(--muted); line-height:1.6; margin:11px 1px 0; }
+    #status { font-size:13px; line-height:1.5; margin-top:10px; color:var(--green); overflow-wrap:anywhere; }
+    .footer { text-align:center; color:#7a857d; font-size:11px; padding:3px 0 0; }
+    @media (min-width:560px) { .grid { grid-template-columns:1fr 1fr; column-gap:12px; } .field.full { grid-column:1/-1; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🏆 績優表揚產圖</h1>
+    <p class="intro">輸入五項資料，自動套用綠金色模板。可預覽、下載 PNG，或用 iPhone 分享到 LINE。</p>
+  </header>
+  <section class="card">
+    <div class="grid">
+      <div class="field"><label for="unit">單位</label><input id="unit" autocomplete="organization" placeholder="例如：新屋森林"></div>
+      <div class="field"><label for="name">姓名</label><input id="name" autocomplete="name" placeholder="例如：徐敬惟"></div>
+      <div class="field"><label for="job">職稱</label><input id="job" placeholder="例如：處長"></div>
+      <div class="field"><label for="product">商品</label><input id="product" placeholder="例如：新鍾心滿福"></div>
+      <div class="field full"><label for="fyp">FYP</label><input id="fyp" inputmode="decimal" placeholder="例如：0.9P"></div>
+    </div>
+    <button class="primary" id="generate">產生圖片預覽</button>
+    <button class="secondary" id="clear">清除欄位</button>
+    <p class="note">所有產圖都在你的手機瀏覽器本機完成，這個版本不會把填寫內容傳送到伺服器。文字位置可依第一次預覽結果再微調。</p>
+  </section>
+
+  <section class="card">
+    <div class="preview-title"><h2>圖片預覽</h2><span class="pill">720 × 1034 PNG</span></div>
+    <canvas id="canvas" width="720" height="1034"></canvas>
+    <button class="primary" id="download" disabled>下載 PNG 圖片</button>
+    <button class="secondary" id="share" disabled>分享圖片（LINE 等）</button>
+    <div id="status" role="status" aria-live="polite">請填妥資料後，按「產生圖片預覽」。</div>
+    <p class="note">iPhone 若下載後沒有直接出現在「照片」，可用「分享圖片」選擇儲存圖片，或儲存到「檔案」。</p>
+  </section>
+  <p class="footer">績優表揚產圖工具 · 可離線使用（首次開啟並載入完成後）</p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const canvas = $('canvas');
+  const ctx = canvas.getContext('2d');
+  const template = new Image();
+  let ready = false;
+  let generated = false;
+  let objectUrl = null;
+
+  template.onload = () => {
+    ready = true;
+    ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+    $('status').textContent = '模板載入完成。填寫資料即可產圖。';
+  };
+  template.onerror = () => $('status').textContent = '模板載入失敗，請重新整理頁面。';
+  template.src = './template.jpg';
+
+  function fontFor(text, maxSize, minSize, maxWidth, weight='700') {
+    let size = maxSize;
+    while (size > minSize) {
+      ctx.font = `${weight} ${size}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif`;
+      if (ctx.measureText(text).width <= maxWidth) break;
+      size--;
+    }
+    return size;
+  }
+
+  function draw(text, x, y, maxSize, minSize, maxWidth, color, align='center', weight='700') {
+    if (!text) return;
+    const size = fontFor(text, maxSize, minSize, maxWidth, weight);
+    ctx.font = `${weight} ${size}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y, maxWidth);
+  }
+
+  function render() {
+    if (!ready) { $('status').textContent = '模板載入中，請稍候再試。'; return; }
+    const values = {
+      unit: $('unit').value.trim(),
+      name: $('name').value.trim(),
+      job: $('job').value.trim(),
+      product: $('product').value.trim(),
+      fyp: $('fyp').value.trim()
+    };
+    const missing = Object.entries({unit:'單位',name:'姓名',job:'職稱',product:'商品',fyp:'FYP'})
+      .filter(([key]) => !values[key]).map(([,label]) => label);
+    if (missing.length) { $('status').textContent = '請先填寫：' + missing.join('、'); return; }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+
+    // 座標以原始 720x1034 空白模板為基準，依範例圖配置
+    draw(values.unit, 108, 379, 39, 22, 500, '#333333', 'left', '700');
+    draw(values.name, 360, 444, 76, 34, 450, '#292929', 'center', '800');
+    draw(values.job, 565, 501, 29, 17, 125, '#333333', 'center', '700');
+    draw(values.product, 360, 653, 64, 28, 590, '#005b40', 'center', '800');
+    draw(values.fyp, 360, 817, 92, 42, 390, '#c90000', 'center', '800');
+
+    generated = true;
+    $('download').disabled = false;
+    $('share').disabled = false;
+    $('status').textContent = '圖片已產生。請檢查文字位置，再下載或分享。';
+  }
+
+  function blobFromCanvas() {
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  $('generate').addEventListener('click', render);
+  $('clear').addEventListener('click', () => {
+    ['unit','name','job','product','fyp'].forEach(id => $(id).value = '');
+    generated = false;
+    $('download').disabled = true;
+    $('share').disabled = true;
+    if (ready) ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+    $('status').textContent = '欄位已清除。';
+  });
+
+  $('download').addEventListener('click', async () => {
+    if (!generated) return;
+    const blob = await blobFromCanvas();
+    if (!blob) { $('status').textContent = '圖片匯出失敗，請再試一次。'; return; }
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = URL.createObjectURL(blob);
+    const safeName = ($('name').value.trim() || '表揚').replace(/[\\/:*?"<>|]/g, '_');
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = `${safeName}_績優表揚.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    $('status').textContent = '已送出下載。若 iPhone 沒有直接存入照片，請改用「分享圖片」。';
+  });
+
+  $('share').addEventListener('click', async () => {
+    if (!generated) return;
+    const blob = await blobFromCanvas();
+    if (!blob) return;
+    const safeName = ($('name').value.trim() || '表揚').replace(/[\\/:*?"<>|]/g, '_');
+    const file = new File([blob], `${safeName}_績優表揚.png`, {type:'image/png'});
+    try {
+      if (navigator.canShare && navigator.canShare({files:[file]})) {
+        await navigator.share({files:[file], title:'績優表揚圖片'});
+        $('status').textContent = '已開啟分享選單。';
+      } else {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, '_blank');
+        $('status').textContent = '此瀏覽器不支援直接分享檔案，已嘗試開啟圖片；請長按圖片儲存。';
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') $('status').textContent = '無法開啟分享選單，請改用下載 PNG。';
+    }
+  });
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
