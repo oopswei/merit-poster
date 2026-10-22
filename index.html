@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#075d43">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="桃竹賀報">
-  <title>桃竹區部賀報製作v1</title>
+  <meta name="apple-mobile-web-app-title" content="桃竹區部賀報">
+  <title>桃竹區部賀報製作</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <style>
@@ -41,16 +41,16 @@
 <body>
 <main>
   <header>
-    <h1>桃竹區部賀報製圖</h1>
-    <p class="intro">輸入五項資料，自動套用模板。可預覽、下載 PNG，或用 iPhone 分享到 LINE。</p>
+    <h1>桃竹區部賀報製作</h1>
+    <p class="intro">輸入五項資料，自動套用模板。可預覽圖片，並透過 iPhone 分享或儲存圖片。</p>
   </header>
   <section class="card">
     <div class="grid">
-      <div class="field"><label for="unit">單位</label><input id="unit" autocomplete="organization" placeholder="例如：新屋森林"></div>
-      <div class="field"><label for="name">姓名(建議最多輸入兩個)</label><input id="name" autocomplete="name" placeholder="例如：徐敬惟"></div>
-      <div class="field"><label for="job">職稱(建議最多輸入兩個)</label><input id="job" placeholder="例如：推展處襄理"></div>
-      <div class="field"><label for="product">商品</label><input id="product" placeholder="例如：萬年美麗"></div>
-      <div class="field full"><label for="fyp">FYP</label><input id="fyp" type="number" inputmode="decimal" step="any" min="0" placeholder="例如：100"></div>
+      <div class="field"><label for="unit">單位</label><input id="unit" autocomplete="organization" placeholder="新屋森林"></div>
+      <div class="field"><label for="name">姓名（建議最多輸入兩個）</label><input id="name" autocomplete="name" placeholder="小魔女"></div>
+      <div class="field"><label for="job">職稱（建議最多輸入兩個）</label><input id="job" placeholder="推展處總監"></div>
+      <div class="field"><label for="product">商品</label><input id="product" placeholder="萬年美麗"></div>
+      <div class="field full"><label for="fyp">FYP</label><input id="fyp" type="number" inputmode="decimal" step="any" min="0" placeholder="100"></div>
     </div>
     <button class="primary" id="generate">產生圖片預覽</button>
     <button class="secondary" id="clear">清除欄位</button>
@@ -59,10 +59,9 @@
   <section class="card">
     <div class="preview-title"><h2>圖片預覽</h2><span class="pill">720 × 1034 PNG</span></div>
     <canvas id="canvas" width="720" height="1034"></canvas>
-    <button class="primary" id="download" disabled>下載 PNG 圖片</button>
-    <button class="secondary" id="share" disabled>分享圖片（LINE 等）</button>
+    <button class="secondary" id="share" disabled>分享圖片</button>
     <div id="status" role="status" aria-live="polite">請填妥資料後，按「產生圖片預覽」。</div>
-    <p class="note">iPhone 若下載後沒有直接出現在「照片」，可用「分享圖片」選擇儲存圖片，或儲存到「檔案」。</p>
+    <p class="note">iPhone 點「分享圖片」後，可在分享選單選擇「儲存影像」存入照片，或分享到 LINE。</p>
   </section>
   <p class="footer">桃竹區部賀報製作工具 · 可離線使用（首次開啟並載入完成後）</p>
 </main>
@@ -125,14 +124,13 @@
     // 座標以原始 720x1034 空白模板為基準，依範例圖配置
     draw(values.unit, 108, 379, 35, 22, 500, '#333333', 'left', '700'); //單位
     draw(values.name, 360, 450, 80, 34, 450, '#292929', 'center', '800'); //名字
-    draw(values.job, 555, 523, 28, 24, 180, '#333333', 'center', '700'); //職稱
+    draw(values.job, 520, 523, 28, 24, 210, '#333333', 'center', '700'); //職稱
     draw(values.product, 360, 653, 100, 28, 590, '#005b40', 'center', '800'); //商品
     draw(values.fyp, 360, 817, 92, 42, 390, '#c90000', 'center', '800'); //FYP
 
     generated = true;
-    $('download').disabled = false;
     $('share').disabled = false;
-    $('status').textContent = '圖片已產生。請檢查後，再下載或分享。';
+    $('status').textContent = '圖片已產生。請檢查後，按「分享圖片」儲存或分享。';
   }
 
   function blobFromCanvas() {
@@ -143,35 +141,20 @@
   $('clear').addEventListener('click', () => {
     ['unit','name','job','product','fyp'].forEach(id => $(id).value = '');
     generated = false;
-    $('download').disabled = true;
     $('share').disabled = true;
     if (ready) ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
     $('status').textContent = '欄位已清除。';
-  });
-
-  $('download').addEventListener('click', async () => {
-    if (!generated) return;
-    const blob = await blobFromCanvas();
-    if (!blob) { $('status').textContent = '圖片匯出失敗，請再試一次。'; return; }
-    if (objectUrl) URL.revokeObjectURL(objectUrl);
-    objectUrl = URL.createObjectURL(blob);
-    const safeName = ($('name').value.trim() || '表揚').replace(/[\\/:*?"<>|]/g, '_');
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = `${safeName}_績優表揚.png`;
-    document.body.appendChild(a); a.click(); a.remove();
-    $('status').textContent = '已送出下載。若 iPhone 沒有直接存入照片，請改用「分享圖片」。';
   });
 
   $('share').addEventListener('click', async () => {
     if (!generated) return;
     const blob = await blobFromCanvas();
     if (!blob) return;
-    const safeName = ($('name').value.trim() || '表揚').replace(/[\\/:*?"<>|]/g, '_');
-    const file = new File([blob], `${safeName}_績優表揚.png`, {type:'image/png'});
+    const safeName = ($('name').value.trim() || '賀報').replace(/[\\/:*?"<>|]/g, '_');
+    const file = new File([blob], `${safeName}_績優賀報.png`, {type:'image/png'});
     try {
       if (navigator.canShare && navigator.canShare({files:[file]})) {
-        await navigator.share({files:[file], title:'績優表揚圖片'});
+        await navigator.share({files:[file], title:'賀報圖片'});
         $('status').textContent = '已開啟分享選單。';
       } else {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -180,7 +163,7 @@
         $('status').textContent = '此瀏覽器不支援直接分享檔案，已嘗試開啟圖片；請長按圖片儲存。';
       }
     } catch (err) {
-      if (err.name !== 'AbortError') $('status').textContent = '無法開啟分享選單，請改用下載 PNG。';
+      if (err.name !== 'AbortError') $('status').textContent = '無法開啟分享選單，請重新產生圖片後再試。';
     }
   });
 
