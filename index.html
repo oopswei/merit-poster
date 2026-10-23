@@ -41,7 +41,7 @@
 <body>
 <main>
   <header>
-    <h1>桃竹區部賀報製作</h1>
+    <h1>桃竹區部賀報製作v3</h1>
     <p class="intro">輸入五項資料，自動套用模板。可預覽圖片，並透過 iPhone 分享或儲存圖片。</p>
   </header>
   <section class="card">
@@ -49,7 +49,7 @@
       <div class="field"><label for="unit">單位</label><input id="unit" autocomplete="organization" placeholder="新屋森林"></div>
       <div class="field"><label for="name">姓名（建議最多輸入兩個）</label><input id="name" autocomplete="name" placeholder="小魔女"></div>
       <div class="field"><label for="job">職稱（建議最多輸入兩個）</label><input id="job" placeholder="推展處總監"></div>
-      <div class="field"><label for="product">商品</label><input id="product" placeholder="萬年美麗"></div>
+      <div class="field"><label for="product">商品代號</label><input id="product" autocomplete="off" autocapitalize="characters" placeholder="輸入商品代號或名稱"><div id="productLookup" class="note" style="margin:-7px 1px 13px">輸入1～2個商品代號，以空格分隔；也可直接輸入中文商品名稱。</div><div id="productChoices" style="display:none;margin:-4px 0 13px"></div></div>
       <div class="field full"><label for="fyp">FYP</label><input id="fyp" type="number" inputmode="decimal" step="any" min="0" placeholder="100"></div>
     </div>
     <button class="primary" id="generate">產生圖片預覽</button>
@@ -68,6 +68,9 @@
 <script>
 (() => {
   const $ = id => document.getElementById(id);
+  const PRODUCT_MAP = {"ABA":["美添增鑽"],"ABB":["美添增鑽"],"AGH":["真漾心安"],"CFA":["自由配"],"CFD":["自由配"],"CFP":["自由配"],"CFQ":["自由配"],"CFR":["自由配"],"CFW":["自由配"],"DCC":["樂心安"],"DCD":["樂心安"],"DQ1":["IN康愛"],"DQB":["樂康愛"],"DR2":["精準康愛"],"DS5":["康泰無憂"],"DS6":["康泰無憂"],"DTF":["樂順心"],"DTG":["樂順心"],"ESA":["月月永溢"],"ESB":["月月永溢"],"ESC":["月月永溢"],"ESD":["月月永溢"],"FBC":["新溢起愛"],"FG3":["倍愛醫靠"],"FG4":["倍愛醫靠"],"FIA":["月月滿溢"],"FIB":["月月滿溢"],"FIC":["月月滿溢"],"FID":["月月滿溢"],"FKA":["月月泰利"],"FKB":["月月泰利"],"FKC":["月月泰利"],"FKD":["月月泰利"],"FMC":["好康愛"],"FSC":["滿溢寶"],"FSD":["滿溢寶"],"FSF":["滿溢康愛"],"FV6":["真心安"],"FV7":["真心安"],"GD3":["鑫超澳利富"],"GFB":["基優人生"],"GFC":["基優人生"],"GFD":["基優人生"],"GFE":["基優人生"],"GI2":["樂享平安"],"GJ3":["樂轉健康"],"GU6":["鑫超樂享人生"],"HD5":["新樂轉守護"],"HTB":["輕漾心安"],"JW4":["真安安"],"L67":["真康順"],"LCC":["樂齡守護"],"LCD":["樂齡守護"],"MFB":["豪康愛"],"N65":["意萬平安"],"R8A":["真飛Young人生"],"R8B":["真飛Young人生"],"SC2":["樂鍾心"],"SFE":["超飛揚"],"SRA":["月享安鑫"],"SRB":["月享安鑫"],"SRC":["月享安鑫"],"SRD":["月享安鑫"],"STA":["樂盈人生"],"STB":["樂盈人生"],"SUA":["飛揚一生"],"SUB":["飛揚一生"],"SUC":["飛揚一生"],"SUD":["飛揚一生"],"VSC":["安心守護A"],"VSD":["安心守護B"],"WAU":["祿利威登"],"WDA":["美愛康盈"],"WDB":["美滿康愛"],"WE1":["滿福寶"],"WSL":["萬得利"],"WSM":["萬得利"],"WUO":["鑽美富"],"WUP":["鑽美富"],"WUQ":["億美利"],"WUR":["億美利"],"WUS":["鑽美滿"],"XG4":["鑫超月月有利"],"XG5":["鑫超月月有利"],"ZCO":["新鍾心滿福"],"ZH8":["倍心守護"],"C64":["祿美富"],"CCA":["繽利101"],"CCB":["吉得利101"],"CP1":["悠享年年"],"CP2":["悠享年年"],"CP3":["悠享年年"],"CQA":["萬年美利"],"CQB":["萬年美利"],"CQC":["萬年美利"],"CQD":["萬年美利"],"CTA":["樂齡享退"],"DPA":["醫心康愛"],"DPC":["醫護康愛"],"DX4":["IN享愛壽險"],"FBB":["新溢起愛"],"FKE":["月月泰利"],"GI1":["樂平安"],"ICB":["鑫超樂享人生"],"ID6":["鑫超樂享人生"],"IUA":["OIU指享盈"],"JD2":["新智樂活"],"K84":["新GO心保障100"],"K93":["新GO心保障100"],"KC3":["微馨福"],"KC4":["微馨福"],"LDA":["睛智守護"],"LDB":["睛智守護"],"LX4":["鑫超樂享人生"],"N66":["新GO安心保本"],"N67":["意萬平安"],"SB8":["脂有為你"],"SFF":["超飛揚(外幣)"],"TC1":["定期壽險"],"TC2":["定期壽險"],"TC3":["定期壽險"],"TC4":["定期壽險"],"WCD":["美利雙寶"],"WCE":["美利雙寶"],"WCF":["萬美心"],"WCG":["美利甘心"],"WCJ":["美智守護"],"WCK":["美智守護"],"WD4":["美利康愛"],"WKA":["澳利成雙"],"WKB":["祿利澳翔"],"WKC":["祿守澳利"],"WQ6":["美添增鑫"],"WQ7":["美添增鑫"],"WQ8":["美添增鑫"],"WSH":["旭滿鑫"],"WSI":["旭滿鑫"],"WSJ":["鑫得利"],"WSK":["鑫得利"],"WTV":["吉添大勝"],"WTW":["雙鑫年年"],"WTY":["美年佳鑫"],"WUM":["美滿雙寶"],"WUN":["鑽美利"],"WUX":["年年佳鑫"],"WY2":["新樂安心"],"WYU":["展望年年"],"WZC":["豪美利101"],"WZD":["吉美利101"],"XU2":["OIU增享盈"],"WJA":["鑽美鑫"],"FPC":["點實成金"],"FPA":["點實成金"],"WWC":["美愛康泰"]};
+  let selectedProductName = '';
+  let resolvedProductNames = [];
   const canvas = $('canvas');
   const ctx = canvas.getContext('2d');
   const template = new Image();
@@ -83,6 +86,109 @@
   template.onerror = () => $('status').textContent = '模板載入失敗，請重新整理頁面。';
   template.src = './template.jpg';
 
+  function lookupProduct() {
+    const raw = $('product').value.trim();
+    const hint = $('productLookup');
+    const choices = $('productChoices');
+    selectedProductName = '';
+    resolvedProductNames = [];
+    choices.innerHTML = '';
+    choices.style.display = 'none';
+
+    if (!raw) {
+      hint.textContent = '輸入一個或兩個商品代號，以空格分隔；也可直接輸入中文商品名稱。';
+      return;
+    }
+
+    // 允許半形空格、全形空格、Tab 分隔；最多兩個項目
+    const items = raw.split(/\s+/).filter(Boolean);
+    const looksLikeCodes = items.every(item => /^[A-Z0-9]+$/i.test(item));
+
+    // 只要輸入內容含中文或其他非代號字元，就視為手動商品名稱。
+    // 因此「商品中文名一 商品中文名二」也能正確分成兩行。
+    if (!looksLikeCodes) {
+      if (items.length > 2) {
+        hint.textContent = '目前最多輸入兩個商品名稱，請用空格分隔。';
+        return;
+      }
+      selectedProductName = items.join(' ');
+      resolvedProductNames = items;
+      hint.textContent = items.length === 2
+        ? '使用手動輸入的兩個商品名稱，將分成兩行顯示。'
+        : '使用手動輸入的商品名稱。';
+      return;
+    }
+
+    const codes = items.map(item => item.toUpperCase());
+    if (codes.length > 2) {
+      hint.textContent = '目前最多查詢兩個商品代號，請用空格分隔。';
+      return;
+    }
+
+    const entries = codes.map(code => ({ code, names: PRODUCT_MAP[code] }));
+    const unknown = entries.filter(item => !item.names);
+    if (unknown.length) {
+      if (codes.length === 1) {
+        hint.textContent = '查無此代號；請確認代號，或直接輸入中文商品名稱。';
+      } else {
+        hint.textContent = `查無代號：${unknown.map(item => item.code).join('、')}。請確認代號，或直接輸入中文商品名稱。`;
+      }
+      return;
+    }
+
+    resolvedProductNames = entries.map(item => item.names.length === 1 ? item.names[0] : '');
+    const ambiguous = entries.filter(item => item.names.length > 1);
+
+    if (!ambiguous.length) {
+      selectedProductName = resolvedProductNames.join(' ');
+      hint.textContent = `查詢結果：${resolvedProductNames.join('、')}`;
+      return;
+    }
+
+    hint.textContent = '此代號有多個商品，請選擇中文名稱：';
+    choices.style.display = 'block';
+
+    ambiguous.forEach(item => {
+      const label = document.createElement('label');
+      label.textContent = `${item.code} 的商品名稱`;
+      label.style.cssText = 'display:block;margin:8px 0 5px;font-size:13px;';
+      const select = document.createElement('select');
+      select.dataset.code = item.code;
+      select.style.cssText = 'width:100%;border:1px solid #d6ded7;border-radius:11px;padding:12px;font-size:16px;margin-bottom:8px;background:#fff;color:#1d2b22;';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '請選擇商品名稱';
+      select.appendChild(placeholder);
+      item.names.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', updateSelectedProducts);
+      choices.appendChild(label);
+      choices.appendChild(select);
+    });
+    updateSelectedProducts();
+  }
+
+  function updateSelectedProducts() {
+    const raw = $('product').value.trim();
+    const codes = raw.toUpperCase().split(/\s+/).filter(Boolean);
+    resolvedProductNames = codes.map(code => {
+      const names = PRODUCT_MAP[code];
+      if (!names) return '';
+      if (names.length === 1) return names[0];
+      const select = [...$('productChoices').querySelectorAll('select')].find(el => el.dataset.code === code);
+      return select ? select.value : '';
+    });
+    selectedProductName = resolvedProductNames.every(Boolean) ? resolvedProductNames.join(' ') : '';
+    if (selectedProductName) {
+      $('productLookup').textContent = `已選擇：${resolvedProductNames.join('、')}`;
+    }
+  }
+
+  $('product').addEventListener('input', lookupProduct);
   function fontFor(text, maxSize, minSize, maxWidth, weight='700') {
     let size = maxSize;
     while (size > minSize) {
@@ -109,11 +215,21 @@
       unit: $('unit').value.trim(),
       name: $('name').value.trim(),
       job: $('job').value.trim(),
-      product: $('product').value.trim(),
+      product: selectedProductName || $('product').value.trim(),
       fyp: $('fyp').value.trim()
         ? $('fyp').value.trim().replace(/P$/i, '') + 'P'
         : ''
     };
+    const enteredProductRaw = $('product').value.trim();
+    const enteredProductCodes = enteredProductRaw.toUpperCase().split(/\s+/).filter(Boolean);
+    // 只有每個項目都是英文字母或數字，才視為商品代號。
+    // 兩個中文名稱即使中間有空格，也允許直接產圖。
+    const enteredAsCodes = enteredProductCodes.length > 0 &&
+      enteredProductCodes.every(item => /^[A-Z0-9]+$/.test(item));
+    if (enteredAsCodes && (!selectedProductName || enteredProductCodes.some(code => !PRODUCT_MAP[code]))) {
+      $('status').textContent = '請確認商品代號；若代號有多個名稱，請先選擇每個代號的中文名稱。';
+      return;
+    }
     const missing = Object.entries({unit:'單位',name:'姓名',job:'職稱',product:'商品',fyp:'FYP'})
       .filter(([key]) => !values[key]).map(([,label]) => label);
     if (missing.length) { $('status').textContent = '請先填寫：' + missing.join('、'); return; }
@@ -123,9 +239,15 @@
 
     // 座標以原始 720x1034 空白模板為基準，依範例圖配置
     draw(values.unit, 108, 379, 35, 22, 500, '#333333', 'left', '700'); //單位
-    draw(values.name, 360, 450, 80, 34, 450, '#292929', 'center', '800'); //名字
+    draw(values.name, 360, 450, 98, 34, 450, '#292929', 'center', '800'); //名字
     draw(values.job, 520, 523, 28, 24, 210, '#333333', 'center', '700'); //職稱
-    draw(values.product, 360, 653, 100, 28, 590, '#005b40', 'center', '800'); //商品
+    const productLines = selectedProductName ? resolvedProductNames : [values.product];
+    if (productLines.length === 2) {
+      draw(productLines[0], 360, 610, 72, 28, 590, '#005b40', 'center', '800'); //商品第一行
+      draw(productLines[1], 360, 692, 72, 28, 590, '#005b40', 'center', '800'); //商品第二行
+    } else {
+      draw(values.product, 360, 653, 100, 28, 590, '#005b40', 'center', '800'); //商品
+    }
     draw(values.fyp, 360, 817, 92, 42, 390, '#c90000', 'center', '800'); //FYP
 
     generated = true;
@@ -140,6 +262,11 @@
   $('generate').addEventListener('click', render);
   $('clear').addEventListener('click', () => {
     ['unit','name','job','product','fyp'].forEach(id => $(id).value = '');
+    selectedProductName = '';
+    resolvedProductNames = [];
+    $('productChoices').innerHTML = '';
+    $('productChoices').style.display = 'none';
+    $('productLookup').textContent = '輸入一個或兩個商品代號，以空格分隔；也可直接輸入中文商品名稱。';
     generated = false;
     $('share').disabled = true;
     if (ready) ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
@@ -167,8 +294,29 @@
     }
   });
 
+  // 每次開啟網頁或從 iPhone 的暫存頁面返回，都清除上次填寫的資料
+  window.addEventListener('pageshow', () => {
+    $('clear').click();
+  });
+
+  // 主動檢查 Service Worker 更新；更新完成後自動載入新版頁面
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    let refreshingForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshingForUpdate) return;
+      refreshingForUpdate = true;
+      location.reload();
+    });
+    window.addEventListener('load', async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('./sw.js', {
+          updateViaCache: 'none'
+        });
+        await registration.update();
+      } catch (error) {
+        console.warn('Service Worker 更新檢查失敗：', error);
+      }
+    });
   }
 })();
 </script>
