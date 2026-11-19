@@ -117,6 +117,16 @@
     <input id="editStaffJob" placeholder="輸入要修改的職稱">
     <button class="primary" id="saveStaffJobBtn" type="button">儲存此人職稱</button>
     <p class="note">只更新選取的「單位＋姓名」資料，不影響其他人。重新匯入 CSV 時，CSV 職稱會覆蓋這裡的手動修改。</p>
+    <hr style="border:0;border-top:1px solid #e3e9e4;margin:16px 0">
+    <h2 style="margin-bottom:10px">單筆新增人員</h2>
+    <label for="newStaffUnit">單位</label>
+    <input id="newStaffUnit" placeholder="例如：新屋森林">
+    <label for="newStaffName">姓名</label>
+    <input id="newStaffName" placeholder="例如：小魔女">
+    <label for="newStaffJob">職稱</label>
+    <input id="newStaffJob" placeholder="例如：推展處經理">
+    <button class="primary" id="addStaffBtn" type="button">新增這位人員</button>
+    <p class="note">新增前會檢查「單位＋姓名」是否已存在；若已存在，請改用上方的單筆職稱修改功能。</p>
     <label for="productCsv">商品名單 CSV（欄位：product_code,product_name；亦支援 code,name）</label>
     <input id="productCsv" type="file" accept=".csv,text/csv">
     <button class="primary" id="importProductBtn" type="button">匯入商品名單（新增或更新）</button>
@@ -474,6 +484,39 @@
       try { await saveStaffJob(); }
       catch (error) { setAdminStatus('職稱修改失敗：' + (error.message || error), true); }
       finally { button.disabled = false; }
+    });
+    $('addStaffBtn').addEventListener('click', async () => {
+      const button = $('addStaffBtn');
+      if (!isAdmin) return setAdminStatus('請先以管理員登入。', true);
+      const unit = $('newStaffUnit').value.trim();
+      const name = $('newStaffName').value.trim();
+      const job = $('newStaffJob').value.trim();
+      if (!unit || !name || !job) return setAdminStatus('請完整輸入單位、姓名與職稱。', true);
+      button.disabled = true;
+      try {
+        const duplicate = STAFF_ROWS.some(row =>
+          normalizeStaffSearch(row.unit) === normalizeStaffSearch(unit) &&
+          normalizeStaffSearch(row.name) === normalizeStaffSearch(name)
+        );
+        if (duplicate) return setAdminStatus(`「${unit}／${name}」已存在，請使用上方的單筆人員職稱修改功能。`, true);
+        const { data, error } = await supabaseClient.from(STAFF_TABLE)
+          .insert({ unit, name, job }).select('unit,name,job');
+        if (error) {
+          if (error.code === '23505') throw new Error('這個單位與姓名已存在，請改用單筆職稱修改功能。');
+          throw error;
+        }
+        await loadStaffDirectory();
+        $('newStaffUnit').value = '';
+        $('newStaffName').value = '';
+        $('newStaffJob').value = '';
+        $('staffSearch').value = name;
+        renderStaffSearchResults();
+        setAdminStatus(`已新增人員：${unit}／${name}，職稱：${job}。`);
+      } catch (error) {
+        setAdminStatus('新增人員失敗：' + (error.message || error), true);
+      } finally {
+        button.disabled = false;
+      }
     });
 
     $('importProductBtn').addEventListener('click', async () => {
