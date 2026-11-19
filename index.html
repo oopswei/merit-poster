@@ -103,7 +103,20 @@
     <label for="staffCsv">人員名單 CSV（欄位：unit,name,job）</label>
     <input id="staffCsv" type="file" accept=".csv,text/csv">
     <button class="primary" id="importStaffBtn" type="button">匯入人員名單（新增或更新）</button>
-    <p class="note">CSV 會依「單位＋姓名」比對；相同組合更新職級，不會刪除未出現在 CSV 的人員。</p>
+    <p class="note">CSV 會依「單位＋姓名」比對；相同組合更新職級，不會刪除未出現在 CSV 的人員。重新匯入時以 CSV 職稱為準，會覆蓋單筆手動修改。</p>
+    <hr style="border:0;border-top:1px solid #e3e9e4;margin:16px 0">
+    <h2 style="margin-bottom:10px">單筆人員職稱修改</h2>
+    <label for="staffSearch">搜尋單位或姓名</label>
+    <input id="staffSearch" type="search" placeholder="例如：新屋、徐敬惟">
+    <div id="staffSearchResults" class="note" style="margin:0 0 12px">輸入單位或姓名，從結果中選擇要修改的人員。</div>
+    <label for="editStaffUnit">單位</label>
+    <input id="editStaffUnit" readonly placeholder="選擇人員後自動帶入">
+    <label for="editStaffName">姓名</label>
+    <input id="editStaffName" readonly placeholder="選擇人員後自動帶入">
+    <label for="editStaffJob">職稱</label>
+    <input id="editStaffJob" placeholder="輸入要修改的職稱">
+    <button class="primary" id="saveStaffJobBtn" type="button">儲存此人職稱</button>
+    <p class="note">只更新選取的「單位＋姓名」資料，不影響其他人。重新匯入 CSV 時，CSV 職稱會覆蓋這裡的手動修改。</p>
     <label for="productCsv">商品名單 CSV（欄位：product_code,product_name；亦支援 code,name）</label>
     <input id="productCsv" type="file" accept=".csv,text/csv">
     <button class="primary" id="importProductBtn" type="button">匯入商品名單（新增或更新）</button>
@@ -164,6 +177,7 @@
   let supabaseClient = null;
   let isAdmin = false;
   let STAFF_ROWS = [];
+  let selectedStaffForEdit = null;
   let DYNAMIC_PRODUCT_MAP = {};
 
   function setAuthStatus(message, isError = false) {
@@ -188,6 +202,71 @@
     staffListReady = true;
     autofillNewHouseJob(true);
   }
+  function normalizeStaffSearch(value) {
+    return String(value || '').trim().replace(/[\s　]/g, '').toLocaleLowerCase();
+  }
+
+  function renderStaffSearchResults() {
+    const container = $('staffSearchResults');
+    if (!container) return;
+    const keyword = normalizeStaffSearch($('staffSearch').value);
+    selectedStaffForEdit = null;
+    $('editStaffUnit').value = '';
+    $('editStaffName').value = '';
+    $('editStaffJob').value = '';
+    container.innerHTML = '';
+    if (!keyword) {
+      container.textContent = '輸入單位或姓名，從結果中選擇要修改的人員。';
+      return;
+    }
+    const matches = STAFF_ROWS.filter(row =>
+      normalizeStaffSearch(row.unit).includes(keyword) || normalizeStaffSearch(row.name).includes(keyword)
+    );
+    if (!matches.length) {
+      container.textContent = '查無符合的人員，請確認單位或姓名。';
+      return;
+    }
+    const shown = matches.slice(0, 40);
+    const list = document.createElement('div');
+    list.style.cssText = 'display:grid;gap:7px;margin-top:8px;';
+    shown.forEach(row => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'secondary';
+      button.style.cssText = 'text-align:left;margin:0;min-height:42px;font-size:14px;';
+      button.textContent = `${row.unit}｜${row.name}｜${row.job || '未設定職稱'}`;
+      button.addEventListener('click', () => {
+        selectedStaffForEdit = { unit: row.unit, name: row.name };
+        $('editStaffUnit').value = row.unit || '';
+        $('editStaffName').value = row.name || '';
+        $('editStaffJob').value = row.job || '';
+        container.querySelectorAll('button').forEach(item => item.style.outline = '');
+        button.style.outline = '2px solid var(--green)';
+      });
+      list.appendChild(button);
+    });
+    container.appendChild(document.createTextNode(`找到 ${matches.length} 筆${matches.length > shown.length ? '，以下顯示前 40 筆' : ''}，請選擇要修改的人員：`));
+    container.appendChild(list);
+  }
+
+  async function saveStaffJob() {
+    if (!isAdmin) return setAdminStatus('請先以管理員登入。', true);
+    if (!selectedStaffForEdit) return setAdminStatus('請先搜尋並選擇一位人員。', true);
+    const job = $('editStaffJob').value.trim();
+    if (!job) return setAdminStatus('職稱不可空白。', true);
+    const { data, error } = await supabaseClient.from(STAFF_TABLE)
+      .update({ job })
+      .eq('unit', selectedStaffForEdit.unit)
+      .eq('name', selectedStaffForEdit.name)
+      .select('unit,name,job');
+    if (error) return setAdminStatus('職稱修改失敗：' + error.message, true);
+    if (!data || !data.length) return setAdminStatus('沒有更新任何資料。請確認管理員是否有資料表更新權限（RLS）。', true);
+    await loadStaffDirectory();
+    const updated = data.length;
+    renderStaffSearchResults();
+    setAdminStatus(`已更新 ${updated} 筆「${data[0].unit}／${data[0].name}」職稱為「${job}」。重新匯入 CSV 時會以 CSV 職稱覆蓋。`);
+  }
+
   async function loadProducts() {
     const { data, error } = await supabaseClient.from(PRODUCT_TABLE)
       .select('product_code,product_name').order('product_code');
@@ -388,6 +467,15 @@
         setAdminStatus(`人員匯入完成：${normalized.length} 筆（新增或更新，未刪除其他資料）。`);
       } catch (error) { setAdminStatus('人員匯入失敗：' + error.message, true); }
     });
+    $('staffSearch').addEventListener('input', renderStaffSearchResults);
+    $('saveStaffJobBtn').addEventListener('click', async () => {
+      const button = $('saveStaffJobBtn');
+      button.disabled = true;
+      try { await saveStaffJob(); }
+      catch (error) { setAdminStatus('職稱修改失敗：' + (error.message || error), true); }
+      finally { button.disabled = false; }
+    });
+
     $('importProductBtn').addEventListener('click', async () => {
       if (!isAdmin) return setAdminStatus('請先以管理員登入。', true);
       const file = $('productCsv').files[0];
