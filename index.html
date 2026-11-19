@@ -598,17 +598,20 @@
       return;
     }
 
-    // 單位採部分文字比對：輸入「新屋」可匹配「新屋森林」，
-    // 輸入「新屋森林」也可匹配「新屋森林通訊處」等較完整名稱。
-    // 姓名採完整比對，避免同名或部分姓名造成職稱誤帶。
+    // 單位採「由精確到模糊」的優先比對，避免短關鍵字誤撞其他單位：
+    // 1. 完整單位相同；2. 資料庫單位名稱以輸入文字開頭；
+    // 3. 若前兩種都沒有結果，才使用包含文字的模糊比對。
+    // 姓名仍採完整比對，避免同名或部分姓名造成職稱誤帶。
     const normalize = value => String(value || '').trim().replace(/[\s　]/g, '').toLocaleLowerCase();
     const unitKey = normalize(unitInput);
     const nameKey = normalize(name);
-    const matched = STAFF_ROWS.filter(row => {
-      const rowUnit = normalize(row.unit);
-      const rowName = normalize(row.name);
-      return rowUnit && rowName && (rowUnit.includes(unitKey) || unitKey.includes(rowUnit)) && rowName === nameKey;
+    const sameNameRows = STAFF_ROWS.filter(row => {
+      return normalize(row.name) === nameKey && normalize(row.unit) && String(row.job || '').trim();
     });
+    const exactUnitRows = sameNameRows.filter(row => normalize(row.unit) === unitKey);
+    const prefixUnitRows = sameNameRows.filter(row => normalize(row.unit).startsWith(unitKey));
+    const containsUnitRows = sameNameRows.filter(row => normalize(row.unit).includes(unitKey) || unitKey.includes(normalize(row.unit)));
+    const matched = exactUnitRows.length ? exactUnitRows : (prefixUnitRows.length ? prefixUnitRows : containsUnitRows);
     const jobs = [...new Set(matched.map(row => String(row.job || '').trim()).filter(Boolean))];
     const currentJob = $('job').value.trim();
 
