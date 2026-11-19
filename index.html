@@ -4,11 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#075d43">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="桃竹區部賀報">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <script>
+    // 停用舊版 PWA 離線快取：每次開啟時解除 Service Worker 並清除 Cache Storage。
+    (async function disableOfflineCache() {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+      } catch (error) {
+        console.warn('清除舊版離線快取失敗：', error);
+      }
+    })();
+  </script>
   <title>桃竹區部賀報製作</title>
-  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -574,35 +590,50 @@
   }
 
   function autofillNewHouseJob(force = false) {
-    if (!isNewHouseUnit()) return;
+    const unitInput = $('unit').value.trim();
     const name = $('name').value.trim();
-    if (!name) return;
+    if (!unitInput || !name) return;
     if (!staffListReady) {
-      $('status').textContent = '請先登入並載入新屋人員名單。';
-      return;
-    }
-    const unit = $('unit').value.trim();
-    const matched = STAFF_ROWS.filter(row =>
-      String(row.unit || '').trim() === unit &&
-      String(row.name || '').trim() === name
-    );
-    const jobs = [...new Set(matched.map(row => String(row.job || '').trim()).filter(Boolean))];
-    if (!jobs.length) {
-      $('status').textContent = `名單中找不到「${unit}／${name}」的職級；可手動輸入職稱。`;
+      $('status').textContent = '人員名單尚未載入完成，請稍候再輸入。';
       return;
     }
 
+    // 單位採部分文字比對：輸入「新屋」可匹配「新屋森林」，
+    // 輸入「新屋森林」也可匹配「新屋森林通訊處」等較完整名稱。
+    // 姓名採完整比對，避免同名或部分姓名造成職稱誤帶。
+    const normalize = value => String(value || '').trim().replace(/[\s　]/g, '').toLocaleLowerCase();
+    const unitKey = normalize(unitInput);
+    const nameKey = normalize(name);
+    const matched = STAFF_ROWS.filter(row => {
+      const rowUnit = normalize(row.unit);
+      const rowName = normalize(row.name);
+      return rowUnit && rowName && (rowUnit.includes(unitKey) || unitKey.includes(rowUnit)) && rowName === nameKey;
+    });
+    const jobs = [...new Set(matched.map(row => String(row.job || '').trim()).filter(Boolean))];
     const currentJob = $('job').value.trim();
-    // 輸入姓名時預填；切換單位時只在職稱空白或仍是先前自動帶入值時更新，
-    // 使用者手動修改後不會被單位欄位的變動覆蓋。
+
+    if (!jobs.length) {
+      // 若欄位仍是上一次由系統自動帶入的職稱，清除它，避免單位或姓名改變後殘留錯誤職稱。
+      if (lastAutoFilledJob && currentJob === lastAutoFilledJob) $('job').value = '';
+      lastAutoFilledJob = '';
+      $('status').textContent = `找不到「${unitInput}／${name}」的對應人員，請確認單位與姓名，或手動輸入職稱。`;
+      return;
+    }
+
+    if (jobs.length > 1) {
+      if (lastAutoFilledJob && currentJob === lastAutoFilledJob) $('job').value = '';
+      lastAutoFilledJob = '';
+      const units = [...new Set(matched.map(row => String(row.unit || '').trim()))];
+      $('status').textContent = `「${unitInput}／${name}」符合多筆資料（${units.join('、')}），職稱不自動帶入，請輸入更完整的單位名稱。`;
+      return;
+    }
+
+    // 輸入姓名或單位時，只在職稱空白、強制重新查詢，或目前內容仍是上次自動帶入值時更新。
+    // 使用者手動修改過職稱時，不覆蓋其內容。
     if (force || !currentJob || currentJob === lastAutoFilledJob) {
       $('job').value = jobs[0];
       lastAutoFilledJob = jobs[0];
-      if (jobs.length > 1) {
-        $('status').textContent = `姓名「${name}」有多個職稱，已先帶入「${jobs[0]}」，請確認；職稱欄仍可自行修改。`;
-      } else {
-        $('status').textContent = `已預填職稱：${jobs[0]}（可自行修改）。`;
-      }
+      $('status').textContent = `已依「${unitInput}／${name}」帶入職稱：${jobs[0]}（可自行修改）。`;
     }
   }
 
@@ -731,25 +762,7 @@
     $('clear').click();
   });
 
-  // 主動檢查 Service Worker 更新；更新完成後自動載入新版頁面
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    let refreshingForUpdate = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshingForUpdate) return;
-      refreshingForUpdate = true;
-      location.reload();
-    });
-    window.addEventListener('load', async () => {
-      try {
-        const registration = await navigator.serviceWorker.register('./sw.js', {
-          updateViaCache: 'none'
-        });
-        await registration.update();
-      } catch (error) {
-        console.warn('Service Worker 更新檢查失敗：', error);
-      }
-    });
-  }
+  // 不再註冊 Service Worker；舊版離線快取由頁面載入時的清理程序解除。
 })();
 </script>
 </body>
