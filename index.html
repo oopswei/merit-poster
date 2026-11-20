@@ -107,7 +107,7 @@
     <hr style="border:0;border-top:1px solid #e3e9e4;margin:16px 0">
     <h2 style="margin-bottom:10px">單筆人員職稱修改</h2>
     <label for="staffSearch">搜尋單位或姓名</label>
-    <input id="staffSearch" type="search" placeholder="例如：新屋、徐敬惟">
+    <input id="staffSearch" type="search" placeholder="例如：新屋、小魔女">
     <div id="staffSearchResults" class="note" style="margin:0 0 12px">輸入單位或姓名，從結果中選擇要修改的人員。</div>
     <label for="editStaffUnit">單位</label>
     <input id="editStaffUnit" readonly placeholder="選擇人員後自動帶入">
@@ -452,7 +452,7 @@
       const file = $('staffCsv').files[0];
       if (!file) return setAdminStatus('請先選擇人員 CSV 檔。', true);
       try {
-        const rows = parseCSV(await file.text());
+        const rows = parseCSV(await readCSVFile(file));
         const normalized = rows.map(r => {
           // 欄位名稱先去除 BOM、前後空白及大小寫差異，再對應中文欄名。
           const clean = {};
@@ -524,7 +524,7 @@
       const file = $('productCsv').files[0];
       if (!file) return setAdminStatus('請先選擇商品 CSV 檔。', true);
       try {
-        const rows = parseCSV(await file.text());
+        const rows = parseCSV(await readCSVFile(file));
         const normalized = rows.map(r => ({
           product_code: String(r.product_code || r.code || r['商品代號'] || '').trim().toUpperCase(),
           product_name: String(r.product_name || r.name || r['商品名稱'] || '').trim()
@@ -562,6 +562,25 @@
       setAdminStatus(`商品 ${code} 已刪除。`);
     });
   }
+  async function readCSVFile(file) {
+    // 優先以 UTF-8 嚴格解碼；若失敗，改用 Big5（繁體中文 Excel 常見格式）。
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const hasUtf8Bom = bytes.length >= 3 &&
+      bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+    if (hasUtf8Bom) return new TextDecoder('utf-8').decode(bytes);
+
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (_) {
+      try {
+        return new TextDecoder('big5').decode(bytes);
+      } catch (error) {
+        throw new Error('無法辨識 CSV 編碼。請將檔案另存為 UTF-8 CSV，或使用 Big5 編碼。');
+      }
+    }
+  }
+
   function parseCSV(text) {
     // 支援一般逗號 CSV、雙引號與 Excel UTF-8 BOM。
     text = text.replace(/^\uFEFF/, '');
